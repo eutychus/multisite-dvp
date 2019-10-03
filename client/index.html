@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Offline Player</title>
+<!-- <link rel="stylesheet" href="http://yui.yahooapis.com/pure/0.6.0/pure-min.css"> -->
+<link rel="stylesheet" href="https://unpkg.com/purecss@0.6.2/build/pure-min.css" integrity="sha384-UQiGfs9ICog+LwheBSRCt1o5cbyKIHbwjWscjemyBMT9YCUMZffs6UqUTd0hObXD" crossorigin="anonymous">
+<link rel="stylesheet" href="shared.css">
+
+<!-- <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.2/jquery.min.js"></script> -->
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+<script src="hls.js"></script>
+<script src="offline.js"></script>
+
+<style>
+	body {
+		background-color: #333;
+		font-family: sans-serif;
+		margin: 0;
+		color: #eee;
+	}
+
+	a, a:visited {
+		color: white;
+	}
+
+	body > main, body > section {
+		display: none;
+	}
+
+
+	main > input, main > button, main > select {
+		color: #333;
+	}
+
+	main .pure-button-primary {
+		background-color: #00aeef;
+/*		background-color: #f79000;*/
+
+	}
+
+	#files-table, #files-header, #files-toggle {
+		display: none;
+	}
+
+	#files-table {
+		border-collapse: collapse;
+		font-family: monospace;
+	}
+	#files-table th { background-color: #f79000; font-size: 120%; }
+	#files-table td, #files-table th { border: 1px solid #ccc; padding: 0.5em; }
+	#files-table td { text-align: left; }
+	#files-table tbody tr:nth-child(odd) td { background-color: #666; }
+
+	video {
+		width: 960px;
+		height: 540px;
+		background-color: black;
+	}
+
+	body #configuration {
+		margin-top: 1em;
+		/*display: none;*/
+	}
+
+	#diskusage {
+		margin-bottom: 1em;
+	}
+
+	#ts_segments {
+		display:inline-block;
+		border-top: 1px solid #666;
+		border-left: 1px solid #666;
+		padding: 0;
+		line-height: 10px;
+		max-width: 935px;
+		text-align: left;
+	}
+
+	#ts_segments span {
+		display: inline-block;
+		width: 10px;
+		height: 10px;
+		background-color: #fcfcfc;
+		border-right: 1px solid #666;
+		border-bottom: 1px solid #666;
+		margin: 0;
+		padding: 0;
+		/*
+		border: 1px solid #666;
+		margin-right: 1px;
+		*/
+	}
+
+	#ts_segments span.cached {
+		background-color: #9f9;
+	}
+
+	#ts_segments span.dis {
+		background-color: #000;
+	}
+
+	#ts_segments span.old {
+		background: linear-gradient(45deg, rgba(252,252,252,1) 0%,rgba(252,252,252,1) 45%,rgba(102,102,102,1) 50%,rgba(252,252,252,1) 55%,rgba(254,254,254,1) 100%);
+	}
+
+	body #ts_segments span.playing {
+		background-color: #99f;
+		/*border: 1px solid #99f;*/
+	}
+
+	#files-table {
+		display: none;
+	}
+
+	header {
+		background: url(bg-header-mobile.jpg) repeat-x;
+		height: 133px;
+	}
+
+	header .logo {
+		margin-top: 70px;
+		margin-left: 70px;
+	}
+
+	main, section {
+		padding-left: 10%;
+		padding-right: 10%;
+		padding-top: 1em;
+		text-align: center;
+	}
+
+	footer {
+		padding-right: 70px;
+		text-align: right;
+		margin-top: 2em;
+	}
+
+	#broadcast-status {
+		position: absolute;
+		top: 10px;
+		right: 20px;
+		background-color: #fff;
+		border: 1px solid #eee;
+		border-radius: 4px;
+		padding: 4px;
+		color: #333;
+		font-weight: bold;
+		font-size: 80%;
+	}
+	#broadcast-status .indicator {
+		font-size: 120%;
+		line-height: 120%;
+	}
+
+	#broadcast-status.notbroadcasting .indicator {
+		color: black;
+	}
+
+	#broadcast-status.broadcasting .indicator {
+		color: green;
+	}
+
+	#broadcast-status.disconnected .indicator {
+		color: red;
+	}
+
+	#broadcast-status.recording .indicator {
+		color: #f79000;
+	}
+
+	video.hidecontrols::-webkit-media-controls-enclosure {
+		display:none !important;
+	}
+
+	main > button, main > select {
+		padding-top: 3px;
+		padding-bottom: 3px;
+	}
+
+</style>
+</head>
+<body>
+<header>
+<img class="logo" src="logo_without_glow.svg"><div id="broadcast-status"><span class="indicator">&#11044;</span> <span class="txt">Loading...</span></div>
+</header>
+<main>
+	<video id="video" controls></video>
+	<br>
+	<div id="timeholder" style="display: inline-block; background-color: white; color: black; width: auto; padding: 3px; border: 2px inset;">Real Time Holder</div>
+	<input type="datetime-local" id="seek_to_broadcast_time" name="seek_to_broadcast_time" >&nbsp;<button onclick="get_seek_time($('#seek_to_broadcast_time').val()); return false;">Seek</button>&nbsp;<button onclick="recordFromPlayer(); return false;">Record from here</button>&nbsp;<select name="recordtime" id="recordtime"><option value="60">1 min</option><option value="300">5 min</option><option value="900">15 min</option><option value="1800">30 min</option><option value="3600">1 hr</option><option value="7200">2 hr</option></select><br><br>
+	<div id="menubar" class="infobox"><button>Storage</button><button>Recordings</button><button>Schedule</button><button id="statusWindowButton" onclick="trackWindow(); return false;">Status Window</button></div><br>
+	<div id="segmentholder" class="infobox">
+		<h2>Storage</h2>
+		<div id="ts_segments"></div> <!-- <span id="tSCache-1460401554000" /> -->
+		<br><div id="diskusage"></div><button onclick="wipeCache(); return false;">Clear</button><button onclick="localStorage.removeItem('offline-config'); wipeCache(); return false;">Start Over</button>
+	</div>
+	<h1 id="files-header">Storage Details</h1><a id="files-toggle" href="#" onclick="$('#files-table').toggle(); return false;">Toggle</a><br>
+	<table id="files-table">
+		<thead><tr><th>Name</th><th>Size</th><th>bTime</th><th>mTime</th><th>Duration</th></tr></thead>
+		<tbody></tbody>
+	</table>
+</main>
+<section id="recordingsholder">
+	<table id="recordings" class="infobox">
+		<caption>Recordings</caption>
+		<thead><tr><th>Name</th><th>Duration</th></tr></thead>
+		<tbody></tbody>
+	</table>
+</section>
+
+<section id="scheduleholder">
+	<table id="schedule" class="infobox">
+		<caption>Schedule</caption>
+		<thead><tr><th>Day</th><th>Time</th><th>Duration</th><th>&nbsp;</th></tr></thead>
+		<tbody>
+			<tr>
+				<td>Sun</td>
+				<td>9:30 AM</td>
+				<td>45 min</td>
+				<td><button>Delete</button></td>
+			</tr>
+			<tr id="schedule_input">
+				<td><select id="schedule_dow" name="schedule_dow"><option value="0">Sun</option><option value="1">Mon</option><option value="2">Tue</option><option value="3">Wed</option><option value="4">Thu</option><option value="5">Fri</option><option value="6">Sat</option></select></td>
+				<td><input type="number" min="0" max="12" size="2" value="9" id="schedule_hour">:<input type="number" min="0" max="59" size="2" value="00" id="schedule_min">&nbsp;<select id="schedule_meridiem"><option>AM</option><option>PM</option></select></td>
+				<td><input type="number" min="5" max="240" size="3" value="30" id="schedule_duration"></td>
+				<td><button onclick="addSchedule();">Add</button></td>
+			</tr>
+		</tbody>
+	</table>
+</section>
+
+<section id="configurationholder">
+	<div id="configuration" class="infobox">
+		<form method="get" action="#" onsubmit="saveConfiguration(); return false" class="pure-form pure-form-aligned">
+			<h2>Configuration</h2>
+			<fieldset>
+				<div class="pure-control-group">
+					<label for="config-domain">Client Domain: </label>
+					<input type="text" id="config-domain" name="config-domain" value="churchoftherock" />
+				</div>
+
+				<div class="pure-control-group">
+					<label for="config-quota">Storage (MB): </label>
+					<input type="number" step="10" name="config-quota" id="config-quota" value="5000" max="20000" />
+				</div>
+
+				<div class="pure-control-group">
+					<label for="config-server-max-age">Server Max Age (Minutes): </label>
+					<input type="number" step="10" name="config-server-max-age" id="config-server-max-age" value="360" max="20000" />
+				</div>
+
+				<div class="pure-control-group">
+					<label>Recording Max Age (Days): </label>
+					<input type="number" step="1" name="config-local-max-age" id="config-local-max-age" value="14" max="60" />
+				</div>
+				<div class="pure-controls">
+					<button type="submit" class="pure-button pure-button-primary">Save</button>
+				</div>
+			</fieldset>
+		</form>
+	</div>
+</section>
+<footer>
+&copy; 2016-2017 Light Cast Media, LLC.
+</footer>
+</body>
+</html>

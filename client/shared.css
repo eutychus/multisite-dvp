@@ -1,0 +1,113 @@
+/* CSS shared between status window and main window */
+
+#menubar { 
+	padding:0;
+	background: none;
+	border: none;
+	display: none;
+}
+
+#menubar button {
+	font-weight: bold;
+	margin-bottom: 1em;
+	margin-right: 1em;
+	padding: 0.5em;
+	border-radius: 4px;
+	border: 4px outset #666;
+	background-color:transparent;
+	color:#eee;
+}
+
+#menubar button.selected {
+	border-color: #00aeef;
+	background-color: #00aeef;
+	color:white;
+}
+
+#menubar button:focus {
+	outline:none;
+	/*border-style: inset;*/
+}
+
+
+#recordingsholder, #scheduleholder, #segmentholder, #help {
+	/*display: block;*/
+	display: none;
+	text-align: center;
+}
+
+#recordingsholder.show {
+	display: block;
+}
+
+#recordingsholder table, #scheduleholder table, #help table {
+	border-collapse: collapse;
+}
+
+#recordingsholder th, #scheduleholder th, #help th {
+	padding: 0.5em;
+	text-align: center;
+}
+#recordingsholder td, #scheduleholder td, #help td {
+	border: 1px solid #666;
+	padding: 0.5em;
+	background-color: white;
+	text-align: center;
+}
+
+#recordingsholder td button:last-of-type {
+	margin-right: 0;
+}
+
+#recordingsholder button {
+	margin-right: 1em;
+}
+
+#recordingsholder tr.playing td:nth-child(-n+2) {
+	font-weight: bold;
+}
+
+#recordingsholder tr.playing td button:first-of-type {
+	display: inline-block;
+	cursor: default;
+	opacity: 0.65;
+	color: #333;
+}
+
+#recordingsholder tr.playing button {
+	display:none;
+}
+
+
+#recordingsholder caption, #scheduleholder caption, #help caption {
+	font-size: 1.5em;
+	font-weight: bold;
+	margin: 0.5em 0;
+}
+
+#recordings, #schedule, #help, #keyshortcuts {
+	width: auto;
+	padding: 1em;
+}
+
+#schedule input {
+	width: 2.5em;
+}
+
+
+.infobox {
+	border: 1px solid #a6a6a6;
+	display: inline-block;
+	padding: 6px;
+	background: linear-gradient(#f8f8f8, #ddd);
+	border-radius: 4px;
+	color: #333;
+	text-align: left;
+	width: 960px;
+	box-sizing: border-box;
+
+}
+
+.infobox h2 {
+	text-align: center;
+}

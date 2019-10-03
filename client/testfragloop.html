@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Test Player Error</title>
+		<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.2/jquery.min.js"></script>
+		<script src="hls.min.js"></script>
+	</head>
+<body>
+	<video id="video" controls style="width: 640px; height: 360px"></video>
+	<script>
+			var video = document.getElementById('video');
+			var lastError = "";
+			var lastTime = 0;
+			var ip = "127.0.0.1";
+			hls = new Hls({
+				maxBufferLength : 30,
+				debug: function(log, msg) { console.log([log,msg]) }
+			});
+			// bind them together
+			hls.attachMedia(video);
+
+			hls.on(Hls.Events.MEDIA_ATTACHED,function() {
+				console.log("video and hls.js are now bound together !");
+				hls.loadSource("http://"+ip+"/hlsjstest/index.m3u8");
+			 });
+			hls.on(Hls.Events.MANIFEST_PARSED, function(event,data) {
+				 console.log("manifest loaded, found " + data.levels.length + " quality level");
+				 video.currentTime = 60*60;
+				 video.play();
+			})
+			hls.on(Hls.Events.MEDIA_DETACHED,function() {
+				console.log(["MEDIA DETACHED", error_workaround_time]);
+				//if(error_workaround_time) window.setTimeout(loadplayer, 50);
+				window.setTimeout(loadplayer, 50);
+			});
+			hls.on(Hls.Events.ERROR,function(event, data) {
+				var errorType = data.type;
+				var errorDetails = data.details;
+				var errorFatal = data.fatal;
+				console.log(["ERROR", errorType, errorDetails, errorFatal]);
+				if(errorDetails == "bufferSeekOverHole") {
+					//error_workaround_time = video.currentTime + 0.5;
+					//hls.detachMedia();
+				}
+				if(errorDetails == "fragLoopLoadingError") {
+					//if(lastTime == video.currentTime) video.currentTime+=2;
+					//error_workaround_time = video.currentTime + 0.5;
+					//hls.detachMedia();
+				}
+				if(errorDetails == "bufferStalledError") {
+					//if(lastTime == video.currentTime) video.currentTime+=2;
+					if(lastError === "fragLoopLoadingError") {
+						window.setTimeout(function() {
+							video.currentTime += 5;
+						}, 200);
+					}
+					//console.log(['BEGIN ERROR RECOVERY', video.currentTime]);
+					//error_workaround_time = video.currentTime + 10;
+					//hls.detachMedia();
+				}
+				lastError = errorDetails;
+				lastTime = video.currentTime;
+			});
+
+	</script>
+	<br />
+	<button onclick="$('video').get(0).currentTime += 1">Seek 1s</button>
+</body>
+</html>

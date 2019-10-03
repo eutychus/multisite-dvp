@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Offline Player Status</title>
+<link rel="stylesheet" href="https://unpkg.com/purecss@0.6.2/build/pure-min.css" integrity="sha384-UQiGfs9ICog+LwheBSRCt1o5cbyKIHbwjWscjemyBMT9YCUMZffs6UqUTd0hObXD" crossorigin="anonymous">
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+<link rel="stylesheet" href="font-awesome/css/font-awesome.min.css">
+<link rel="stylesheet" href="shared.css">
+
+<script>
+
+function pad(str,len,padchr,direction) {
+	if(typeof str === "number") str = str + "";
+	if(!len) len = 2;
+	if(!padchr) padchr = "0";
+	if(!direction) direction = "left";
+	//console.log([str, len, padchr, direction]);
+
+	while(str.length < len) {
+		if(direction === "left") str = padchr + str;
+		else str += padchr;
+	}
+	return str;
+}
+
+function setBroadcastStatus(msg, className) {
+	$("#broadcast-status").attr('class', className);
+	$("#broadcast-status .txt").text(msg);
+}
+
+function setElement(id, html) {
+	$("#"+id).addClass("contentSet").html(html);
+	if(id == "ts_segments") $("#"+id+ " span").click(tsClick);
+}
+
+function timeUpdate(eventfmt, timefmt, currentTime, duration) {
+	$("#eventname").html(eventfmt);
+
+	var secs = Math.ceil(currentTime);
+	var secsfmt = pad(Math.floor(secs / 60)) + ':' + pad(secs % 60);
+	var secs = Math.ceil(duration);
+	secsfmt += " / " + pad(Math.floor(secs / 60)) + ':' + pad(secs % 60);
+	$("#playertime").attr("x-lcm-secs", secsfmt);
+	$("#playertime").attr("x-lcm-ts", timefmt);
+
+	if($("#playertime").hasClass("secs-view")) $("#playertime").html(secsfmt);
+	else $("#playertime").html(timefmt);
+
+	setPlayerPct((currentTime / duration)*100);
+}
+
+function setPlayerPct(pct) {
+	$(".seekBarPos").width(pct + "%");
+	setPreview(83);
+}
+
+function setClass(selector, className) {
+	$(selector).attr('class', className);
+}
+
+function setPreview(height) {
+	$("#videopreview").css('display','inline-block').attr("src",window.opener.captureImage(height));
+}
+
+function getGPU() {
+	var canvas = document.createElement("canvas");
+	var gl = canvas.getContext("experimental-webgl", { stencil: true });
+	var glExtensionDebugRendererInfo = gl.getExtension( 'WEBGL_debug_renderer_info' );
+	return gl.getParameter( glExtensionDebugRendererInfo.UNMASKED_RENDERER_WEBGL );
+}
+
+function setPlaying(fragts) {
+	console.log("setplaying called");
+	$("#ts_segments > span.playing").removeClass("playing");
+	$("#tsCache-"+fragts).addClass("playing");
+}
+
+function setRecordings(html) {
+	$("#recordingsholder").html(html);
+	$("#recordingsholder button:last-child").prev("button").addBack().hide();
+	//$("recordingsholder button").on("click", function(evt) { console.log(evt); });
+}
+
+function setPlayPause(mode) {
+	console.log(["setPlayPause",mode]);
+	if(mode == "pause") {
+		$("#play-pause").removeClass("fa-pause").addClass("fa-play");
+	}
+	else {
+		$("#play-pause").removeClass("fa-play").addClass("fa-pause");
+	}
+}
+
+function appendTsSeg(html) {
+	// only append if we already populated from the original document load
+	if($('#ts_segments').hasClass("contentSet")) {
+		$('#ts_segments').append($(html).click(tsClick));
+	}
+}
+
+function removeElement(sel) {
+	$(sel).remove();
+}
+
+function playRecording(ts) {
+	opener.playRecording(ts);
+}
+
+function tsClick() {
+	console.log("tsClick called");
+	var timestamp = parseInt($(this).attr('id').split('-').pop(),10);
+	if($(this).hasClass('dis')) { alert('Not a segment'); return false; }
+	opener.get_seek_time(timestamp);
+}
+
+function menubarToggle(evt) {
+	console.log(evt);
+	console.log(this);
+	var txt = $(this).text();
+	var ele = false;
+	var display = "block";
+
+	if(txt === "Status Window") {
+		return;
+	}
+
+	
+	if(txt === "Storage") { ele = "#segmentholder"; display = "inline-block"; }
+	if(txt === "Recordings") ele = "#recordingsholder";
+	if(txt === "Schedule") ele = "#scheduleholder";
+	if(txt === "Help") ele = "#help";
+
+	var active = $(this).hasClass("selected");
+
+	if(active) $(this).removeClass("selected");
+	else $(this).addClass("selected");
+
+	if(ele) {
+		if(active) $(ele).hide();
+		else $(ele).css("display", display);
+	}
+
+	if(txt === "Status Window") ele = "#segmentholder";
+
+}
+
+
+$(function() {
+	// set debug information
+	$("#debug_platform").children().eq(1).text(navigator.platform);
+	$("#debug_gpu").children().eq(1).text(getGPU());
+
+	var v = navigator.userAgent.match(/Chrome\/(\S+)/);
+	if(v) $("#debug_browser").children().eq(1).text(v[0]);
+
+	$("#debug_statuswindow_res").children().eq(1).text(screen.width + 'x' + screen.height);
+
+	if(window.opener) $("#debug_playerwindow_res").children().eq(1).text(window.opener.screen.width + 'x' + window.opener.screen.height);
+
+	$("body").off("keyup").on("keydown", function(evt) {
+	  if (evt.keyCode == 32 && evt.target == document.body) {
+		console.log('blocking default action');
+		evt.preventDefault();
+		return false;
+	  }
+	});
+	$("body").off("keyup").on("keyup", function(evt) {
+		opener.keyup(evt);
+		console.log(evt.target);
+/*
+		  if (evt.keyCode == 32 && evt.target == document.body) {
+			console.log('blocking default action');
+			evt.preventDefault();
+			return false;
+		  }
+*/
+	});
+
+	$("#play-pause").click(function() {
+		opener.keyup({keyCode:32});
+		console.log("play-pause clicked");
+
+	});
+	$(window).on("unload", function() {
+		console.log('unload triggered');
+		opener.statusWindowClosed();
+	});
+
+	$(".seekbar").click(function(e) {
+		var relX = e.pageX - $(this).offset().left;
+		var pct = (relX / $(this).width())*100;
+		opener.seekPct(pct);
+	});
+
+	$("#menubar").css('display','inline-block');
+	$("#menubar button:first").addClass('selected');
+	$("#menubar button").on("click", menubarToggle);
+
+	$("#playertime").on("click", function() {
+		var ele = $("#playertime");
+		if(ele.hasClass("secs-view")) {
+			ele.removeClass("secs-view").addClass("ts-view");
+			if(typeof ele.attr("x-lcm-ts") != "undefined") ele.html(ele.attr("x-lcm-ts"));
+		}
+		else {
+			$("#playertime").addClass("secs-view").removeClass("ts-view");
+			if(typeof ele.attr("x-lcm-secs") != "undefined") ele.html(ele.attr("x-lcm-secs"));
+		}
+	});
+});
+
+</script>
+<style>
+	body {
+		background-color: #333;
+		font-family: sans-serif;
+		margin: 0;
+		color: #eee;
+	}
+
+	a, a:visited {
+		color: white;
+	}
+
+	main > input, main > button, main > select {
+		color: #333;
+	}
+
+	main .pure-button-primary {
+		background-color: #00aeef;
+/*		background-color: #f79000;*/
+
+	}
+
+	#files-table, #files-header, #files-toggle {
+		display: none;
+	}
+
+	#files-table {
+		border-collapse: collapse;
+		font-family: monospace;
+	}
+	#files-table th { background-color: #f79000; font-size: 120%; }
+	#files-table td, #files-table th { border: 1px solid #ccc; padding: 0.5em; }
+	#files-table td { text-align: left; }
+	#files-table tbody tr:nth-child(odd) td { background-color: #666; }
+
+	video {
+		width: 960px;
+		height: 540px;
+	}
+
+	#segmentholder, #configuration {
+		border: 1px solid #a6a6a6;
+		display: inline-block;
+		padding: 6px;
+		background: linear-gradient(#f8f8f8, #ddd);
+		border-radius: 4px;
+		color: #333;
+		text-align: left;
+		width: 960px;
+		box-sizing: border-box;
+
+	}
+
+	body #configuration {
+		margin-top: 1em;
+		/*display: none;*/
+	}
+
+	#segmentholder h2, #configuration h2 {
+		text-align: center;
+	}
+
+
+	#diskusage {
+		margin-bottom: 1em;
+	}
+
+	#ts_segments {
+		display:inline-block;
+		border-top: 1px solid #666;
+		border-left: 1px solid #666;
+		padding: 0;
+		line-height: 10px;
+		max-width: 935px;
+	}
+	
+	#ts_segments span {
+		display: inline-block;
+		width: 10px;
+		height: 10px;
+		background-color: #fcfcfc;
+		border-right: 1px solid #666;
+		border-bottom: 1px solid #666;
+		margin: 0;
+		padding: 0;
+		/*
+		border: 1px solid #666;
+		margin-right: 1px;
+		*/
+	}
+
+	#ts_segments span.cached {
+		background-color: #9f9;
+	}
+
+	#ts_segments span.dis {
+		background-color: #000;
+	}
+
+	#ts_segments span.old {
+		background: linear-gradient(45deg, rgba(252,252,252,1) 0%,rgba(252,252,252,1) 45%,rgba(102,102,102,1) 50%,rgba(252,252,252,1) 55%,rgba(254,254,254,1) 100%); 
+	}
+
+	body #ts_segments span.playing {
+		background-color: #99f;
+		/*border: 1px solid #99f;*/
+	}
+
+	#files-table {
+		display: none;
+	}
+
+	header {
+		background: url(bg-header-mobile.jpg) repeat-x;
+		height: 133px;
+	}
+
+	header .logo {
+		margin-top: 70px;
+		margin-left: 70px;
+	}
+
+	main, section {
+		/*padding-left: 10%;
+		padding-right: 10%;*/
+		padding-top: 1em;
+		text-align: center;
+	}
+
+	footer {
+		padding-right: 70px;
+		text-align: right;
+		margin-top: 2em;
+	}
+
+	#broadcast-status {
+		position: absolute;
+		top: 10px;
+		right: 20px;
+		background-color: #fff;
+		border: 1px solid #eee;
+		border-radius: 4px;
+		padding: 4px;
+		color: #333;
+		font-weight: bold;
+		font-size: 80%;
+	}
+	#broadcast-status .indicator {
+		font-size: 120%;
+		line-height: 120%;
+	}
+
+	#broadcast-status.notbroadcasting .indicator {
+		color: black;
+	}
+
+	#broadcast-status.broadcasting .indicator {
+		color: green;
+	}
+
+	#broadcast-status.disconnected .indicator {
+		color: red;
+	}
+
+	#broadcast-status.recording .indicator {
+		color: #f79000;
+	}
+
+	#playercontrols {
+		margin-bottom: 1em;
+	}
+
+	#playercontrols div {
+		display: inline-block;
+		margin-left: 0.5em;
+	}
+
+	#playercontrols div:last-of-type {
+		padding-right: 0;
+	}
+
+	#playercontrols .seekbar {
+		height: 24px;
+		background-color: #666;
+		border-radius: 4px;
+		width: 800px;
+		text-align: left;
+	}
+
+	#playercontrols .seekBarPos {
+		width:100%;
+		height: 100%;
+		background-color: #00aeef;
+		margin-left: 0;
+		border-radius: 4px;
+	}
+
+	#videopreview {
+		position: absolute;
+		display: none;
+		right: 0;
+		top: 50px;
+	}
+
+	#playercontrols > * {
+		cursor: pointer;
+	}
+
+</style>
+</head>
+<body>
+<header>
+<img class="logo" src="logo_without_glow.svg"><div id="broadcast-status"><span class="indicator">&#11044;</span> <span class="txt">Loading...</span></div>
+</header>
+<main>
+<!--
+	<input type="datetime-local" id="seek_to_broadcast_time" name="seek_to_broadcast_time" >&nbsp;<button onclick="get_seek_time($('#seek_to_broadcast_time').val()); return false;">Seek</button>&nbsp;<button onclick="recordFromPlayer(); return false;">Record from here</button>&nbsp;<select name="recordtime" id="recordtime"><option value="60">1 min</option><option value="300">5 min</option><option value="900">15 min</option><option value="1800">30 min</option><option value="3600">1 hr</option><option value="7200">2 hr</option></select><br><br> -->
+	<div id="eventname">Event: Wed Jun 29 8:30pm</div>
+	<div id="playercontrols">
+		<i id="play-pause" class="fa fa-pause fa-2x"></i>
+		<div class="seekbar"><div class="seekBarPos"></div></div><div id="playertime">8:45:30 pm</div>
+	</div>
+
+	<div id="menubar" class="infobox"><button>Storage</button><button>Recordings</button><button>Help</button></div><br>
+
+	<div id="segmentholder">
+		<h2>Storage</h2>
+		<div id="ts_segments"></div> <!-- <span id="tSCache-1460401554000" /> -->
+		<br><div id="diskusage"></div><!--<button onclick="wipeCache(); return false;">Clear</button>-->
+	</div>
+</main>
+<section id="recordingsholder">
+</section>
+
+<section id="help">
+	<table id="keyshortcuts" class="infobox">
+	<caption>Keyboard Shortcuts</caption>
+	<thead>
+		<tr><th>Action</th><th>Keys</th></tr>
+	</thead>
+	<tbody>
+		<tr><td>Toggle full screen</td><td>Enter, F</td></tr>
+		<tr><td>Toggle play/pause</td><td>Space, Keypad 5</td></tr>
+		<tr><td>Begin recording</td><td>R, *</td></tr>
+		<tr><td>Seek +10 minutes</td><td>+, Up Arrow</td></tr>
+		<tr><td>Seek -10 minutes</td><td>-, Down Arrow</td></tr>
+		<tr><td>Seek +1 minute</td><td>Right Arrow</td></tr>
+		<tr><td>Seek -1 minute</td><td>Left arrow</td></tr>
+		<tr><td>Set focus to seek input</td><td>Keypad dot</td></tr>
+	</tbody>
+	<tbody>
+		<tr id="debug_header"><td colspan=2 style="font-weight: bold">Debug Information</td></tr>
+		<tr id="debug_browser"><td>Browser</td><td></td></tr>
+		<tr id="debug_platform"><td>Platform</td><td></td></tr>
+		<tr id="debug_gpu"><td>GPU</td><td></td></tr>
+		<tr id="debug_playerwindow_res"><td>Player Window Res</td><td></td></tr>
+		<tr id="debug_statuswindow_res"><td>Status Window Res</td><td></td></tr>
+	</tbody>
+	</table>
+</section>
+<img id="videopreview" src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" alt="video preview">
+<footer>
+&copy; 2016-2017 Light Cast Media, LLC.
+</footer>
+</body>
+</html>
